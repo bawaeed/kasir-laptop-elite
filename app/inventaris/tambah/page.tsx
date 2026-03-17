@@ -43,6 +43,7 @@ export default async function TambahStokPage({ searchParams }: Props) {
 
     const cost_price = parseFloat(formData.get("cost_price") as string) || 0;
     const repair_cost = parseFloat(formData.get("repair_cost") as string) || 0;
+    const sparepart_cost = parseFloat(formData.get("sparepart_cost") as string) || 0; // BIAYA SPAREPART BARU
     const target_price = parseFloat(formData.get("target_price") as string) || 0;
 
     const file = formData.get("image") as File;
@@ -65,9 +66,9 @@ export default async function TambahStokPage({ searchParams }: Props) {
     try {
       await pool.query(
         `INSERT INTO "Laptop" 
-        (date_in, sku_code, brand, model, specs, condition_notes, cost_price, repair_cost, target_price, image_url, updated_at) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
-        [date_in, sku_code, brand, model, specs, condition_notes, cost_price, repair_cost, target_price, image_url]
+        (date_in, sku_code, brand, model, specs, condition_notes, cost_price, repair_cost, sparepart_cost, target_price, image_url, updated_at) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
+        [date_in, sku_code, brand, model, specs, condition_notes, cost_price, repair_cost, sparepart_cost, target_price, image_url]
       );
 
       const deskripsi = `Menambahkan unit baru: ${brand} ${model} (SKU: ${sku_code})`;
@@ -122,56 +123,60 @@ export default async function TambahStokPage({ searchParams }: Props) {
                 name="date_in" 
                 defaultValue={today} 
                 required 
-                className="w-full border rounded p-2" 
+                className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" 
               />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-600 mb-1">SKU Code (Wajib Unik)</label>
-              <input type="text" name="sku_code" required placeholder="Contoh: LNV-001" className={`w-full border rounded p-2 ${errorMsg === "sku_duplikat" ? "border-red-500 ring-1 ring-red-500 bg-red-50" : ""}`} />
+              <input type="text" name="sku_code" required placeholder="Contoh: LNV-001" className={`w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none ${errorMsg === "sku_duplikat" ? "border-red-500 ring-1 ring-red-500 bg-red-50" : ""}`} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-600 mb-1">Brand</label>
-              <input type="text" name="brand" required placeholder="Contoh: Lenovo" className="w-full border rounded p-2" />
+              <input type="text" name="brand" required placeholder="Contoh: Lenovo" className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-600 mb-1">Model Laptop</label>
-              <input type="text" name="model" required placeholder="Contoh: ThinkPad T480s" className="w-full border rounded p-2" />
+              <input type="text" name="model" required placeholder="Contoh: ThinkPad T480s" className="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-600 mb-1">Spesifikasi Singkat</label>
-            <textarea name="specs" placeholder="Contoh: Core i5 Gen 8, RAM 16GB, SSD 512GB" className="w-full border rounded p-2 h-20" />
+            <textarea name="specs" placeholder="Contoh: Core i5 Gen 8, RAM 16GB, SSD 512GB" className="w-full border rounded p-2 h-20 focus:ring-2 focus:ring-blue-500 outline-none" />
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-600 mb-1">Catatan Kondisi / Minus</label>
-            <textarea name="condition_notes" placeholder="Contoh: Baterai drop, lecet pemakaian, keyboard ada 1 tombol mati" className="w-full border rounded p-2 h-20" />
+            <textarea name="condition_notes" placeholder="Contoh: Baterai drop, lecet pemakaian, keyboard ada 1 tombol mati" className="w-full border rounded p-2 h-20 focus:ring-2 focus:ring-blue-500 outline-none" />
           </div>
 
-          <div className="p-4 bg-gray-50 rounded border border-gray-200 mt-2">
-            <h3 className="font-semibold text-gray-700 mb-4">Informasi Harga (Rp)</h3>
-            <div className="grid grid-cols-3 gap-4">
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 mt-2">
+            <h3 className="font-bold text-gray-700 mb-4 border-b pb-2">Informasi Modal & Harga (Rp)</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Harga Beli Awal</label>
-                <input type="number" name="cost_price" required placeholder="3000000" className="w-full border rounded p-2" />
+                <input type="number" name="cost_price" required placeholder="3000000" className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Biaya Perbaikan</label>
-                <input type="number" name="repair_cost" defaultValue="0" placeholder="500000" className="w-full border rounded p-2" />
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Biaya Servis</label>
+                <input type="number" name="repair_cost" defaultValue="0" placeholder="0" className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Harga Jual Target</label>
-                <input type="number" name="target_price" required placeholder="4200000" className="w-full border rounded p-2" />
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Biaya Sparepart</label>
+                <input type="number" name="sparepart_cost" defaultValue="0" placeholder="0" className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-blue-700 mb-1">Harga Jual Target</label>
+                <input type="number" name="target_price" required placeholder="4200000" className="w-full border border-blue-300 bg-blue-50 rounded p-2 text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
             </div>
           </div>
 
-          <button type="submit" className="mt-4 bg-blue-600 text-white font-semibold py-3 rounded hover:bg-blue-700 transition shadow-md">
-            Simpan Data Laptop
+          <button type="submit" className="mt-4 bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition shadow-md flex justify-center items-center gap-2">
+            <span>💾 Simpan Data Laptop</span>
           </button>
         </form>
       </div>
