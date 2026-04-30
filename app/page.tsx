@@ -1,11 +1,31 @@
 import { pool } from "@/lib/db"; 
 import Link from "next/link";
-// MENGIMPOR IKON LUCIDE
-import { TrendingUp, Zap, Wallet, Package, CheckCircle, Wrench, Plus } from "lucide-react";
+import { auth } from "@/auth"; 
+import { redirect } from "next/navigation"; // Tambahkan ini
+import { 
+  TrendingUp, 
+  Zap, 
+  Wallet, 
+  Package, 
+  CheckCircle, 
+  Wrench, 
+  Plus 
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  // 1. Ambil session user
+  const session = await auth();
+
+  // 2. SATPAM: Jika tidak ada session, tendang ke login
+  // Ini kunci untuk menghapus "Bug Zombie"
+  if (!session) {
+    redirect("/login");
+  }
+
+  const isAdmin = (session?.user as any)?.role === "admin";
+
   let totalTersedia = 0;
   let totalTerjual = 0;
   let totalDiperbaiki = 0;
@@ -15,6 +35,7 @@ export default async function DashboardPage() {
   let totalAset = 0; 
 
   try {
+    // Query ke tabel "Laptop" (Gunakan tanda kutip dua untuk case-sensitive di Postgres)
     const result = await pool.query('SELECT status, cost_price, repair_cost, target_price FROM "Laptop"');
     const laptops = result.rows;
 
@@ -36,7 +57,7 @@ export default async function DashboardPage() {
       }
     });
   } catch (error) {
-    console.error("Gagal memuat data dashboard:", error);
+    console.error("🚨 Gagal memuat data dashboard:", error);
   }
 
   const formatRupiah = (angka: number) => {
@@ -48,11 +69,11 @@ export default async function DashboardPage() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-8 max-w-6xl mx-auto animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Dashboard Utama</h1>
-          <p className="text-gray-500 mt-1 text-sm">Ringkasan performa bisnis Elite Gear Anda saat ini.</p>
+          <p className="text-gray-500 mt-1 text-sm">Selamat bekerja, <span className="font-semibold text-blue-600">{session.user?.name}</span>!</p>
         </div>
         <Link 
           href="/inventaris/tambah" 
@@ -62,56 +83,57 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      {/* KOTAK UANG DENGAN EFEK HOVER MELAYANG */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="text-sm font-semibold text-gray-500">Laba Bersih (Realisasi)</h3>
-            <div className="p-2 bg-green-50 rounded-lg text-green-600 group-hover:scale-110 transition-transform">
-              <TrendingUp size={20} />
+      {/* 💰 BAGIAN KEUANGAN: HANYA UNTUK ADMIN */}
+      {isAdmin ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-sm font-semibold text-gray-500">Laba Bersih (Realisasi)</h3>
+              <div className="p-2 bg-green-50 rounded-lg text-green-600 group-hover:scale-110 transition-transform">
+                <TrendingUp size={20} />
+              </div>
             </div>
+            <div className="text-3xl font-bold text-gray-900 mb-1">{formatRupiah(labaRealisasi)}</div>
+            <p className="text-xs text-gray-500 font-medium">
+              Dari <span className="text-green-600 font-bold">{totalTerjual} unit</span> terjual
+            </p>
           </div>
-          <div className="text-3xl font-bold text-gray-900 mb-1">{formatRupiah(labaRealisasi)}</div>
-          <p className="text-xs text-gray-500 font-medium">
-            Dari <span className="text-green-600 font-bold">{totalTerjual} unit</span> terjual
-          </p>
-        </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="text-sm font-semibold text-gray-500">Potensi Laba (Gudang)</h3>
-            <div className="p-2 bg-blue-50 rounded-lg text-blue-600 group-hover:scale-110 transition-transform">
-              <Zap size={20} />
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-sm font-semibold text-gray-500">Potensi Laba (Gudang)</h3>
+              <div className="p-2 bg-blue-50 rounded-lg text-blue-600 group-hover:scale-110 transition-transform">
+                <Zap size={20} />
+              </div>
             </div>
+            <div className="text-3xl font-bold text-gray-900 mb-1">{formatRupiah(potensiLaba)}</div>
+            <p className="text-xs text-gray-500 font-medium">Estimasi profit jika semua laku</p>
           </div>
-          <div className="text-3xl font-bold text-gray-900 mb-1">{formatRupiah(potensiLaba)}</div>
-          <p className="text-xs text-gray-500 font-medium">
-            Estimasi profit jika semua laku
-          </p>
-        </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-purple-500"></div>
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="text-sm font-semibold text-gray-500">Total Nilai Aset</h3>
-            <div className="p-2 bg-purple-50 rounded-lg text-purple-600 group-hover:scale-110 transition-transform">
-              <Wallet size={20} />
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:-translate-y-1 hover:shadow-md transition-all duration-300 relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-purple-500"></div>
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-sm font-semibold text-gray-500">Total Nilai Aset</h3>
+              <div className="p-2 bg-purple-50 rounded-lg text-purple-600 group-hover:scale-110 transition-transform">
+                <Wallet size={20} />
+              </div>
             </div>
+            <div className="text-3xl font-bold text-gray-900 mb-1">{formatRupiah(totalAset)}</div>
+            <p className="text-xs text-gray-500 font-medium">Modal yang berputar di stok</p>
           </div>
-          <div className="text-3xl font-bold text-gray-900 mb-1">{formatRupiah(totalAset)}</div>
-          <p className="text-xs text-gray-500 font-medium">
-            Modal yang berputar di stok saat ini
-          </p>
         </div>
+      ) : (
+        <div className="mb-8 p-6 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl text-white shadow-lg">
+          <h2 className="text-xl font-bold mb-1">Elite Gear Dashboard 🛡️</h2>
+          <p className="text-blue-100 text-sm opacity-90">Gunakan menu di samping untuk mengelola stok atau membuat transaksi baru.</p>
+        </div>
+      )}
 
-      </div>
-
-      <h2 className="text-xl font-bold text-gray-900 mb-4 mt-2 tracking-tight">Status Gudang</h2>
+      {/* 📦 STATUS GUDANG */}
+      <h2 className="text-xl font-bold text-gray-900 mb-4 tracking-tight">Status Gudang</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
         <Link href="/inventaris?status=Tersedia" className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:-translate-y-1 hover:shadow-md hover:border-blue-200 transition-all duration-300 group block">
           <div className="flex justify-between items-center">
             <div>
@@ -147,7 +169,6 @@ export default async function DashboardPage() {
             </div>
           </div>
         </Link>
-
       </div>
     </div>
   );

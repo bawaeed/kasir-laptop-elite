@@ -1,42 +1,34 @@
-version: '3.8'
-
 services:
-  # 1. SERVER DATABASE POSTGRESQL
-  db_elite_gear:
+  # --- DATABASE POSTGRESQL ---
+  db:
     image: postgres:15-alpine
     container_name: kasir_db_prod
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: passwordrahasia123 # <-- Ganti dengan password yang Anda inginkan
+      POSTGRES_PASSWORD: rahasia
       POSTGRES_DB: db_kasir_laptop
     ports:
-      - "5432:5432"
+      - "5433:5432" # Akses dari luar lewat 5433, di dalam tetap 5432
     volumes:
-      - kasir_db_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
 
-  # 2. SERVER APLIKASI KASIR NEXT.JS
-  web_elite_gear:
-    build: .
+  # --- APLIKASI NEXT.JS ---
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: kasir_web_prod
     restart: always
     ports:
       - "3000:3000"
     environment:
-      # URL Koneksi Database (Harus cocok dengan settingan db_elite_gear di atas)
-      DATABASE_URL: "postgresql://postgres:passwordrahasia123@db_elite_gear:5432/db_kasir_laptop?schema=public"
-      
-      # Ganti IP ini dengan IP CasaOS Anda nantinya
-      NEXTAUTH_URL: "http://192.168.1.xxx:3000" 
-      
-      # Kode rahasia untuk sistem login (Bebas ketik huruf acak panjang)
-      NEXTAUTH_SECRET: "RahasiaEliteGearSuperAman12345" 
-    volumes:
-      # 🚨 INI KUNCI AGAR FOTO TIDAK HILANG SAAT RESTART!
-      - ./public/uploads:/app/public/uploads
+      # PENTING: DATABASE_URL diarahkan ke service 'db' di atas
+      DATABASE_URL: "postgresql://postgres:rahasia@db:5432/db_kasir_laptop"
+      AUTH_SECRET: "elite-gear-super-secret-key-2026"
+      NEXTAUTH_URL: "http://192.168.0.139:3000"
     depends_on:
-      - db_elite_gear
+      - db
 
-# Bikin "Flashdisk" virtual untuk menyimpan data database
 volumes:
-  kasir_db_data:
+  pgdata:

@@ -40,4 +40,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# generated prisma
 /app/generated/prisma
+
+# ==========================================
+# 📷 CLOUD & UPLOAD ASSETS (PENYIMPANAN FOTO)
+# ==========================================
+# Abaikan semua file foto hasil upload agar repo tetap ringan
+/public/uploads/*
+
+# Kecuali file .gitkeep agar folder uploads tetap terbaca oleh Git
+!/public/uploads/.gitkeep

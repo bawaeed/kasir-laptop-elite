@@ -1,11 +1,12 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { pool } from "@/lib/db";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { authConfig } from "../auth.config";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
+  trustHost: true, // INI WAJIB UNTUK DOCKER & CASAOS! 🛡️
   providers: [
     Credentials({
       name: "Credentials",
@@ -22,8 +23,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           if (user) {
             const isValid = await bcrypt.compare(password as string, user.password);
-            // 🌟 BARU: Sertakan 'role' saat user berhasil login
-            if (isValid) return { id: user.id.toString(), name: user.username, role: user.role };
+            
+            if (isValid) {
+              return { 
+                id: user.id.toString(), 
+                name: user.username, 
+                role: user.role
+              };
+            }
           }
         } catch (error) {
           console.error("🚨 DATABASE ERROR:", error);
@@ -33,18 +40,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-  // 🌟 BARU: Menyimpan pangkat 'role' ke dalam memori Sesi (Session/Cookie)
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         token.role = (user as any).role; 
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (session.user as any).role = token.role;
       }
       return session;

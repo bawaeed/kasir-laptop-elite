@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+/* Anda tidak perlu lagi @tailwind base, components, utilities di v4 */
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}

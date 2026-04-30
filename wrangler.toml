@@ -1,0 +1,7 @@
+name = "kasir-laptop"
+compatibility_date = "2024-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Variabel lingkungan publik di sini, tapi rahasia tetap di Dashboard Cloudflare
+NODE_ENV = "production"
