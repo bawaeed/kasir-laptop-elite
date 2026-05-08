@@ -6,15 +6,12 @@ export default async function EditStokPage({ params }: { params: Promise<{ id: s
   const resolvedParams = await params;
   const id = Number(resolvedParams.id);
 
-  // 1. Ambil data laptop langsung dari Database
   const rawLaptop = await prisma.laptop.findUnique({
     where: { id: id }
   });
 
   if (!rawLaptop) return notFound();
 
-  // 2. PROSES PEMBERSIHAN DATA (Serialization)
-  // Penting: Mengubah Date & Decimal menjadi format yang dipahami Browser
   const laptop = {
     ...rawLaptop,
     date_in: rawLaptop.date_in ? rawLaptop.date_in.toISOString() : null,
@@ -26,7 +23,6 @@ export default async function EditStokPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
-      {/* Mengirim data yang sudah bersih ke komponen Form */}
       <EditForm laptop={laptop} />
     </div>
   );
