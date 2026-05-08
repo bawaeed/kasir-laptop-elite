@@ -1,4 +1,4 @@
-import { pool } from "@/lib/db";
+import { prisma } from "@/lib/db"; // ✅ DIUBAH: Menggunakan Prisma
 import Link from "next/link";
 
 /**
@@ -6,17 +6,18 @@ import Link from "next/link";
  * Menampilkan histori tindakan yang dilakukan di sistem
  */
 export default async function LogAktifitasPage() {
-  let logs = [];
+  let logs: any[] = [];
 
   try {
+    // 📡 MENGAMBIL DATA VIA PRISMA
     // 1. Sinkronisasi Nama Tabel: "LogAktifitas"
     // 2. Sinkronisasi Kolom Waktu: "waktu"
-    const result = await pool.query(
-      'SELECT * FROM "LogAktifitas" ORDER BY waktu DESC LIMIT 100'
-    );
-    logs = result.rows;
+    logs = await prisma.logAktifitas.findMany({
+      orderBy: { waktu: 'desc' },
+      take: 100,
+    });
   } catch (error) {
-    console.error("🚨 Gagal mengambil log:", error);
+    console.error("🚨 Gagal mengambil log via Prisma:", error);
   }
 
   return (

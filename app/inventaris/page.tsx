@@ -1,27 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { pool, catatLog } from "@/lib/db"; 
+import { prisma, catatLog } from "@/lib/db"; // ✅ DIUBAH: Menggunakan prisma Singleton
 import Link from "next/link"; 
 import { revalidatePath } from "next/cache";
 import { Plus, Download, Search, Edit, Trash2, Image as ImageIcon, RotateCcw, PackageSearch } from "lucide-react";
 import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
-
-type Laptop = {
-  id: number; 
-  sku_code: string;
-  brand: string;
-  model: string;
-  specs: string | null;
-  condition_notes: string | null;
-  cost_price: number | string;
-  repair_cost: number | string;
-  target_price: number | string;
-  status: string;
-  image_url: string | null;
-  date_in: string | Date | null;
-  date_out: string | Date | null;
-};
 
 type Props = {
   searchParams: Promise<{ q?: string; status?: string; page?: string }>;
@@ -38,39 +22,44 @@ export default async function InventarisPage({ searchParams }: Props) {
   const currentPage = Number(params?.page) || 1;
   const ITEMS_PER_PAGE = 10; 
 
-  let laptops: Laptop[] = [];
+  let laptops: any[] = [];
   let totalPages = 1;
   let totalItems = 0;
   
   try {
-    let baseQuery = ' FROM "Laptop" WHERE 1=1';
-    const values: any[] = [];
-    let paramIndex = 1;
+    // 📡 2. BANGUN FILTER PENCARIAN PRISMA (WHERE CLAUSE)
+    const whereClause: any = {};
 
     if (q) {
-      baseQuery += ` AND (sku_code ILIKE $${paramIndex} OR brand ILIKE $${paramIndex} OR model ILIKE $${paramIndex})`;
-      values.push(`%${q}%`);
-      paramIndex++;
+      whereClause.OR = [
+        { sku_code: { contains: q, mode: 'insensitive' } },
+        { brand: { contains: q, mode: 'insensitive' } },
+        { model: { contains: q, mode: 'insensitive' } },
+      ];
     }
 
     if (statusFilter !== "Semua") {
-      baseQuery += ` AND status = $${paramIndex}`;
-      values.push(statusFilter);
-      paramIndex++;
+      whereClause.status = statusFilter;
     }
 
-    const countResult = await pool.query(`SELECT COUNT(*) ${baseQuery}`, values);
-    totalItems = parseInt(countResult.rows[0].count, 10);
+    // 🧮 3. MENGHITUNG TOTAL DATA & PAGINASI VIA PRISMA
+    totalItems = await prisma.laptop.count({
+      where: whereClause
+    });
     totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
     const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-    const dataQuery = `SELECT * ${baseQuery} ORDER BY id DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    const dataValues = [...values, ITEMS_PER_PAGE, offset];
     
-    const result = await pool.query(dataQuery, dataValues);
-    laptops = result.rows; 
+    // 💾 4. MENGAMBIL DATA DATA LAPTOP
+    laptops = await prisma.laptop.findMany({
+      where: whereClause,
+      orderBy: { id: 'desc' },
+      skip: offset,
+      take: ITEMS_PER_PAGE,
+    });
+    
   } catch (error) {
-    console.error("🔍 PESAN ERROR ASLINYA:", error); 
+    console.error("🔍 PESAN ERROR PRISMA:", error); 
   }
 
   const formatRupiah = (angka: number) => {
@@ -87,22 +76,30 @@ export default async function InventarisPage({ searchParams }: Props) {
     return new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" }).format(date);
   };
 
+  // 🗑️ SERVER ACTION: HAPUS DATA VIA PRISMA
   async function hapusLaptop(formData: FormData) {
     "use server";
-    const id = formData.get("id");
+    const id = Number(formData.get("id")); // Prisma butuh tipe Number
     const session = await auth();
     const activeUser = session?.user?.name || "Sistem";
     const role = (session?.user as any)?.role;
 
-    // 🔒 PROTEKSI TINGKAT TINGGI: Hanya admin yang boleh eksekusi hapus di server
+    // 🔒 PROTEKSI TINGKAT TINGGI: Hanya admin yang boleh eksekusi hapus
     if (role !== "admin") return;
 
     try {
-      const getLaptop = await pool.query('SELECT sku_code, brand, model FROM "Laptop" WHERE id = $1', [id]);
-      const laptopToDelete = getLaptop.rows[0];
+      // Cari data laptop dulu untuk dicatat di log
+      const laptopToDelete = await prisma.laptop.findUnique({
+        where: { id: id },
+        select: { sku_code: true, brand: true, model: true }
+      });
 
       if (laptopToDelete) {
-        await pool.query('DELETE FROM "Laptop" WHERE id = $1', [id]);
+        // Eksekusi Hapus
+        await prisma.laptop.delete({
+          where: { id: id }
+        });
+        
         const deskripsi = `Menghapus unit: ${laptopToDelete.brand} ${laptopToDelete.model} (SKU: ${laptopToDelete.sku_code})`;
         await catatLog(activeUser, "HAPUS STOK", deskripsi);
       }
@@ -181,7 +178,7 @@ export default async function InventarisPage({ searchParams }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {laptops.map((laptop: Laptop) => {
+              {laptops.map((laptop: any) => {
                 const totalModal = (Number(laptop.cost_price) || 0) + (Number(laptop.repair_cost) || 0);
                 const hargaJual = Number(laptop.target_price) || 0;
                 const estimasiProfit = hargaJual - totalModal;
@@ -218,7 +215,7 @@ export default async function InventarisPage({ searchParams }: Props) {
 
                     <td className="px-6 py-4 text-xs text-slate-500">
                       <div>M: {formatTanggal(laptop.date_in)}</div>
-                      {laptop.status === "Terjual" && <div>K: {formatTanggal(laptop.date_out)}</div>}
+                      {laptop.status === "Terjual" && <div>K: {formatTanggal(laptop.updated_at)}</div>}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${

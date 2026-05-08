@@ -1,11 +1,10 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  // Properti 'url' harus kosong di sini karena sudah pindah ke prisma.config.ts
+  // 🔥 KOSONGKAN DI SINI SESUAI ATURAN PRISMA 7 🔥
 }
 
 model User {

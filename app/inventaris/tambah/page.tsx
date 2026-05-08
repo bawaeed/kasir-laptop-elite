@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { pool, catatLog } from "@/lib/db"; 
+import { prisma, catatLog } from "@/lib/db"; // ✅ DIUBAH: Menggunakan prisma
 import Link from "next/link";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
@@ -22,8 +22,12 @@ export default async function TambahStokPage({ searchParams }: Props) {
     const activeUser = session?.user?.name || "Sistem";
     const sku_code = formData.get("sku_code") as string;
     
-    const cekSku = await pool.query('SELECT id FROM "Laptop" WHERE sku_code = $1', [sku_code]);
-    if (cekSku.rows.length > 0) {
+    // 🛡️ 1. CEK SKU DUPLIKAT MENGGUNAKAN PRISMA
+    const cekSku = await prisma.laptop.findUnique({
+      where: { sku_code: sku_code }
+    });
+
+    if (cekSku) {
       redirect('/inventaris/tambah?error=sku_duplikat');
     }
 
@@ -41,6 +45,7 @@ export default async function TambahStokPage({ searchParams }: Props) {
     const file = formData.get("image") as File;
     let image_url = null; 
 
+    // 📂 Upload Gambar Lokal (Aman untuk sementara)
     if (file && file.size > 0) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
@@ -54,12 +59,22 @@ export default async function TambahStokPage({ searchParams }: Props) {
     }
 
     try {
-      await pool.query(
-        `INSERT INTO "Laptop" 
-        (date_in, sku_code, brand, model, specs, condition_notes, cost_price, repair_cost, sparepart_cost, target_price, image_url, updated_at) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
-        [date_in, sku_code, brand, model, specs, condition_notes, cost_price, repair_cost, sparepart_cost, target_price, image_url]
-      );
+      // 💾 2. SIMPAN DATA KE DATABASE MENGGUNAKAN PRISMA
+      await prisma.laptop.create({
+        data: {
+          date_in: new Date(date_in), // Prisma butuh format Date object
+          sku_code,
+          brand,
+          model,
+          specs,
+          condition_notes,
+          cost_price,
+          repair_cost,
+          sparepart_cost,
+          target_price,
+          image_url,
+        }
+      });
 
       await catatLog(activeUser, "TAMBAH STOK", `Unit baru: ${brand} ${model} (SKU: ${sku_code})`);
 

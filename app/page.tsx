@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/db"; // ✅ Pastikan mengarah ke Singleton kita
 import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@/auth";
@@ -7,28 +7,32 @@ import {
   MapPin, Clock, ShieldCheck, ChevronDown
 } from "lucide-react"; 
 
-const WA_NUMBER = "6281234567890"; // Ganti dengan nomor WhatsApp Toko
+const WA_NUMBER = "6281234567890"; // 📱 Ganti dengan nomor WhatsApp Toko Komandan
+
+export const dynamic = "force-dynamic";
 
 export default async function HomePage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; sort?: string }>;
 }) {
-  // 1. Ambil parameter pencarian dan pengurutan
+  // 1. Ambil parameter pencarian dan pengurutan (Next.js 15+ Pattern)
   const params = await searchParams;
   const query = params.q || "";
   const sort = params.sort || "terbaru";
 
   // 2. Logika Pengurutan (Sorting)
-  let orderByClause: any = { date_in: "desc" }; // Default: Terbaru
+  let orderByClause: any = { date_in: "desc" }; 
   if (sort === "termurah") {
     orderByClause = { target_price: "asc" };
   } else if (sort === "termahal") {
     orderByClause = { target_price: "desc" };
   }
 
-  // 3. Ambil data dari database
+  // 3. Ambil data dari database via Prisma
   const session = await auth(); 
+  
+  // 🛡️ Blok ini akan memicu error jika .env belum benar
   const data = await prisma.laptop.findMany({
     where: {
       status: "Tersedia",
@@ -40,6 +44,14 @@ export default async function HomePage({
     },
     orderBy: orderByClause,
   });
+
+  const formatRupiah = (angka: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(angka);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -85,7 +97,6 @@ export default async function HomePage({
             Katalog unit laptop bekas berkualitas, melewati Quality Control ketat, dan siap pakai.
           </p>
 
-          {/* Form Pencarian & Sorting */}
           <form action="/" method="GET" className="max-w-3xl mx-auto flex flex-col md:flex-row gap-3 relative">
             <div className="relative flex-grow">
               <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
@@ -131,21 +142,20 @@ export default async function HomePage({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {data.map((item: any) => {
             const displayPrice = item.target_price ? Number(item.target_price) : 0;
-            const formattedPrice = displayPrice.toLocaleString('id-ID');
             
             const message = encodeURIComponent(
               `Halo Elite Gear, saya tertarik dengan unit ini:\n\n` +
               `*Unit:* ${item.brand} ${item.model}\n` +
               `*SKU:* ${item.sku_code || '-'}\n` +
-              `*Harga:* Rp ${formattedPrice}\n\n` +
-              `Apakah unit ini masih tersedia dan bisa lihat fotonya lebih banyak?`
+              `*Harga:* ${formatRupiah(displayPrice)}\n\n` +
+              `Apakah unit ini masih tersedia?`
             );
             const waLink = `https://wa.me/${WA_NUMBER}?text=${message}`;
 
             return (
               <div key={item.id} className="group bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col">
                 
-                {/* Image */}
+                {/* Image Section */}
                 <div className="relative h-64 w-full bg-gray-100 overflow-hidden border-b border-gray-100">
                   {item.image_url ? (
                     <Image 
@@ -171,15 +181,15 @@ export default async function HomePage({
                     {item.model || 'Unnamed Unit'}
                   </h2>
 
-                  {/* Accordion Spesifikasi Lengkap (Pure HTML/CSS) */}
+                  {/* Spesifikasi Accordion */}
                   <div className="bg-blue-50/50 rounded-xl p-4 mb-6 flex-grow border border-blue-100/50">
                     <details className="group/details">
                       <summary className="cursor-pointer text-sm font-bold text-blue-600 hover:text-blue-700 list-none flex justify-between items-center select-none">
-                        <span className="flex items-center gap-2"><ShieldCheck size={16}/> Spesifikasi Lengkap</span>
+                        <span className="flex items-center gap-2"><ShieldCheck size={16}/> Spesifikasi</span>
                         <ChevronDown size={16} className="transition-transform duration-300 group-open/details:rotate-180" />
                       </summary>
                       <div className="mt-4 pt-4 border-t border-blue-100 text-gray-600 text-sm leading-relaxed font-medium whitespace-pre-wrap">
-                        {item.specs || 'Spesifikasi detail belum diinput oleh teknisi kami.'}
+                        {item.specs || 'Hubungi admin untuk detail spesifikasi.'}
                       </div>
                     </details>
                   </div>
@@ -189,7 +199,7 @@ export default async function HomePage({
                       <div>
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Harga Nett</p>
                         <span className="text-2xl font-black text-gray-900">
-                          Rp {formattedPrice}
+                          {formatRupiah(displayPrice)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2.5 py-1 rounded-md border border-green-100">
@@ -199,7 +209,6 @@ export default async function HomePage({
                     </div>
 
                     <a href={waLink} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3.5 rounded-xl shadow-md shadow-green-200 transition-all active:scale-95">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.588-5.946 0-6.556 5.332-11.888 11.888-11.888 3.176 0 6.161 1.237 8.404 3.48 2.242 2.242 3.48 5.227 3.48 8.403 0 6.556-5.332 11.888-11.888 11.888-2.003 0-3.96-.503-5.711-1.458l-6.371 1.784zm6.24-4.086l.447.265c1.466.872 3.158 1.334 4.896 1.334 5.177 0 9.388-4.211 9.388-9.388 0-2.509-.977-4.867-2.751-6.641-1.774-1.774-4.132-2.75-6.64-2.75-5.176 0-9.388 4.212-9.388 9.388 0 1.879.554 3.715 1.601 5.316l.29.444-1.101 4.016 4.114-1.152zm10.334-7.043c-.303-.151-1.791-.882-2.068-.982-.277-.1-.478-.151-.68.151-.202.302-.782.982-.958 1.183-.176.201-.351.226-.654.076-.303-.151-1.28-.472-2.438-1.504-.901-.804-1.508-1.797-1.685-2.099-.177-.302-.019-.465.132-.614.136-.134.303-.353.454-.529.151-.177.202-.302.303-.504.101-.202.05-.378-.025-.529-.075-.151-.68-1.638-.932-2.243-.245-.595-.494-.515-.68-.525-.176-.01-.377-.01-.578-.01-.201 0-.528.075-.804.378-.277.302-1.057 1.033-1.057 2.52 0 1.486 1.082 2.923 1.232 3.125.151.202 2.13 3.253 5.16 4.561.721.311 1.282.497 1.719.637.724.23 1.384.197 1.905.119.58-.086 1.791-.73 2.043-1.437.252-.706.252-1.312.176-1.437-.076-.126-.277-.202-.58-.353z"/></svg>
                       Tanya via WhatsApp
                     </a>
                   </div>
@@ -210,61 +219,37 @@ export default async function HomePage({
         </div>
       </main>
 
-      {/* ================= FOOTER (TRUST SIGNALS) ================= */}
+      {/* ================= FOOTER ================= */}
       <footer className="bg-slate-900 text-slate-300 py-12 mt-auto border-t-4 border-blue-600">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-          
-          {/* Kolom 1: Branding */}
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
           <div>
-            <div className="flex items-center gap-2 text-white font-bold text-2xl mb-4">
+            <div className="flex items-center justify-center md:justify-start gap-2 text-white font-bold text-2xl mb-4">
               <Laptop size={24} className="text-blue-500" />
               Elite Gear
             </div>
-            <p className="text-sm text-slate-400 leading-relaxed mb-6">
-              Pusat jual beli laptop second premium berkualitas. Semua unit telah melewati proses Quality Control (QC) ketat oleh teknisi berpengalaman.
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Pusat jual beli laptop second premium berkualitas. Semua unit telah melewati proses QC ketat.
             </p>
           </div>
-
-          {/* Kolom 2: Kontak & Lokasi */}
           <div>
-            <h4 className="text-white font-bold mb-4 uppercase tracking-wider text-sm">Hubungi Kami</h4>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-3">
-                <MapPin size={18} className="text-blue-500 shrink-0 mt-0.5" />
-                <span>Jl. Simpang Lima No. 1, Pusat Kota Semarang, Jawa Tengah</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-green-500 shrink-0"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.588-5.946 0-6.556 5.332-11.888 11.888-11.888 3.176 0 6.161 1.237 8.404 3.48 2.242 2.242 3.48 5.227 3.48 8.403 0 6.556-5.332 11.888-11.888 11.888-2.003 0-3.96-.503-5.711-1.458l-6.371 1.784z"/></svg>
-                <span>+62 812-3456-7890</span>
-              </li>
-            </ul>
+            <h4 className="text-white font-bold mb-4 uppercase tracking-wider text-sm">Lokasi Kami</h4>
+            <div className="flex items-start justify-center md:justify-start gap-3 text-sm">
+              <MapPin size={18} className="text-blue-500 shrink-0 mt-0.5" />
+              <span>Semarang, Jawa Tengah</span>
+            </div>
           </div>
-
-          {/* Kolom 3: Jam Operasional */}
           <div>
-            <h4 className="text-white font-bold mb-4 uppercase tracking-wider text-sm">Jam Operasional</h4>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="flex items-center gap-2"><Clock size={16} className="text-blue-500"/> Senin - Jumat</span>
-                <span className="font-medium text-white">09:00 - 20:00 WIB</span>
-              </li>
-              <li className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="flex items-center gap-2"><Clock size={16} className="text-blue-500"/> Sabtu</span>
-                <span className="font-medium text-white">09:00 - 17:00 WIB</span>
-              </li>
-              <li className="flex items-center justify-between text-red-400">
-                <span className="flex items-center gap-2"><Clock size={16} /> Minggu</span>
-                <span className="font-medium">Tutup / Libur</span>
-              </li>
-            </ul>
+            <h4 className="text-white font-bold mb-4 uppercase tracking-wider text-sm">Buka Setiap Hari</h4>
+            <div className="flex items-center justify-center md:justify-start gap-3 text-sm">
+              <Clock size={18} className="text-blue-500 shrink-0" />
+              <span>09:00 - 20:00 WIB</span>
+            </div>
           </div>
-
         </div>
         <div className="max-w-7xl mx-auto px-6 mt-12 pt-6 border-t border-slate-800 text-center text-xs text-slate-500">
           © {new Date().getFullYear()} Elite Gear. All rights reserved.
         </div>
       </footer>
-      
     </div>
   );
 }

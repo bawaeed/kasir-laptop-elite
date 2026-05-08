@@ -1,12 +1,12 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { pool } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { authConfig } from "../auth.config";
+import { prisma } from "@/lib/db"; // Mengambil Prisma Singleton dari lib/db.ts
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
-  trustHost: true, // INI WAJIB UNTUK DOCKER & CASAOS! 🛡️
+  trustHost: true, // KRUSIAL: Agar Vercel bisa mengenali domain secara otomatis 🛡️
   providers: [
     Credentials({
       name: "Credentials",
@@ -15,12 +15,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        if (!credentials?.username || !credentials?.password) return null;
+
         const { username, password } = credentials;
 
         try {
-          const result = await pool.query('SELECT * FROM "Users" WHERE username = $1', [username]);
-          const user = result.rows[0];
+          // 📡 Mencari user di Supabase via Prisma
+          const user = await prisma.user.findUnique({
+            where: { username: username as string }
+          });
 
+          // 🔍 Validasi User & Password
           if (user) {
             const isValid = await bcrypt.compare(password as string, user.password);
             
@@ -33,23 +38,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
           }
         } catch (error) {
-          console.error("🚨 DATABASE ERROR:", error);
+          // Memberikan laporan intelijen jika koneksi database terputus
+          console.error("🚨 DATABASE ERROR PADA LOGIN:", error);
         }
         
-        return null;
+        return null; // Login gagal
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role; 
+        token.role = (user as any).role; // Menyimpan role ke dalam token
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).role = token.role;
+        (session.user as any).role = token.role; // Menyimpan role ke session browser
       }
       return session;
     }

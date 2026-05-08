@@ -3,20 +3,21 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * LOGIKA PENCARIAN DATABASE URL
- * Memastikan CLI Prisma bisa menemukan alamat database di Windows 
- * meskipun environment variable tidak terdeteksi otomatis.
+ * LOGIKA PENCARIAN DIRECT URL (KHUSUS SUPABASE)
+ * Memastikan CLI Prisma menggunakan jalur Direct (Port 5432) 
+ * untuk keperluan Push/Migrate tabel ke Supabase.
  */
-let dbUrl = process.env.DATABASE_URL;
+let directUrl = process.env.DIRECT_URL;
 
-if (!dbUrl) {
+if (!directUrl) {
   try {
     const envPath = path.join(process.cwd(), '.env');
     if (fs.existsSync(envPath)) {
       const envContent = fs.readFileSync(envPath, 'utf-8');
-      const match = envContent.match(/DATABASE_URL=["']?(.+?)["']?(\s|$)/);
+      // 🔥 MENCARI DIRECT_URL BUKAN DATABASE_URL
+      const match = envContent.match(/DIRECT_URL=["']?(.+?)["']?(\s|$)/);
       if (match) {
-        dbUrl = match[1];
+        directUrl = match[1];
       }
     }
   } catch (e) {
@@ -26,10 +27,9 @@ if (!dbUrl) {
 
 export default defineConfig({
   datasource: {
-    /* 
-     * Menggunakan URL dari .env, atau default ke database lokal Docker 
+    /* * Menggunakan URL DIRECT dari .env, atau default ke database lokal 
      * jika variabel tidak ditemukan.
      */
-    url: dbUrl || "postgresql://postgres:rahasia@localhost:5433/db_kasir_laptop",
+    url: directUrl || "postgresql://postgres:rahasia@localhost:5433/db_kasir_laptop",
   },
 });

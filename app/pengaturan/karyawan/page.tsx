@@ -1,4 +1,4 @@
-import { pool, catatLog } from "@/lib/db";
+import { prisma, catatLog } from "@/lib/db"; // ✅ MENGGUNAKAN PRISMA
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -13,10 +13,19 @@ export default async function ManajemenKaryawanPage() {
   const isAdmin = (session?.user as any)?.role === "admin";
   if (!isAdmin) redirect("/");
 
-  // Ambil daftar user dari database
-  const result = await pool.query('SELECT id, username, role FROM "Users" ORDER BY role ASC');
-  const allUsers = result.rows;
+  // 📡 MENGAMBIL DATA VIA PRISMA
+  const allUsers = await prisma.user.findMany({
+    select: {
+      id: true,
+      username: true,
+      role: true
+    },
+    orderBy: {
+      role: 'asc'
+    }
+  });
 
+  // 🛠️ SERVER ACTION: TAMBAH KARYAWAN
   async function tambahKaryawan(formData: FormData) {
     "use server";
     const username = formData.get("username") as string;
@@ -27,15 +36,23 @@ export default async function ManajemenKaryawanPage() {
     const activeUser = session?.user?.name || "Admin";
 
     try {
-      // Cek apakah username sudah dipakai
-      const cekUser = await pool.query('SELECT id FROM "Users" WHERE username = $1', [username]);
-      if (cekUser.rows.length > 0) return; // Tambahkan handling error jika perlu
+      // Cek apakah username sudah dipakai via Prisma
+      const cekUser = await prisma.user.findUnique({
+        where: { username: username }
+      });
+      
+      if (cekUser) return; // Keluar jika username sudah ada
 
       const hashedPw = await bcrypt.hash(password, 10);
-      await pool.query(
-        'INSERT INTO "Users" (username, password, role) VALUES ($1, $2, $3)',
-        [username, hashedPw, role]
-      );
+      
+      // Simpan User Baru via Prisma
+      await prisma.user.create({
+        data: {
+          username: username,
+          password: hashedPw,
+          role: role
+        }
+      });
 
       await catatLog(activeUser, "TAMBAH AKUN", `Mendaftarkan user baru: ${username} sebagai ${role}`);
       revalidatePath("/pengaturan/karyawan");
@@ -44,9 +61,10 @@ export default async function ManajemenKaryawanPage() {
     }
   }
 
+  // 🗑️ SERVER ACTION: HAPUS KARYAWAN
   async function hapusKaryawan(formData: FormData) {
     "use server";
-    const id = formData.get("id");
+    const id = Number(formData.get("id")); // Prisma butuh tipe Number
     const targetUsername = formData.get("username");
 
     const session = await auth();
@@ -56,7 +74,11 @@ export default async function ManajemenKaryawanPage() {
     if (targetUsername === "admin") return;
 
     try {
-      await pool.query('DELETE FROM "Users" WHERE id = $1', [id]);
+      // Hapus Data via Prisma
+      await prisma.user.delete({
+        where: { id: id }
+      });
+      
       await catatLog(activeUser, "HAPUS AKUN", `Menghapus akses user: ${targetUsername}`);
       revalidatePath("/pengaturan/karyawan");
     } catch (error) {
