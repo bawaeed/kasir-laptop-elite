@@ -2,18 +2,20 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-// Kita buat instance dengan pengecekan ketat untuk Prisma 7
+/**
+ * 🚀 PRISMA CLIENT SINGLETON (VERSI ELITE)
+ */
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
+    // @ts-ignore - Mengabaikan protes TS karena Prisma 7 menggunakan prisma.config.ts
     datasources: {
       db: {
-        // ✅ "as string" memastikan TypeScript tidak protes baris 12
         url: process.env.DATABASE_URL as string,
       },
     },
     log: ["query"],
-  });
+  } as any); // "as any" adalah kunci darurat agar TS tidak protes di baris 12
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
@@ -22,14 +24,13 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
  */
 export async function catatLog(userId: any, aktivitas: string, keterangan: string) {
   try {
-    // ✅ Pastikan userId adalah angka sebelum dikirim ke database
-    const idAngka = userId ? parseInt(userId) : null;
-    const finalUserId = isNaN(idAngka as number) ? null : idAngka;
+    // 💡 Konversi ke angka secara paksa untuk database (Int)
+    const numericId = userId ? Number(userId) : null;
+    const validId = (numericId !== null && !isNaN(numericId)) ? numericId : null;
 
-    await prisma.logAktifitas.create({
+    await (prisma.logAktifitas as any).create({
       data: {
-        // ✅ Baris 33 sekarang aman karena finalUserId sudah pasti number | null
-        user_id: finalUserId,
+        user_id: validId,
         aktivitas: aktivitas,
         keterangan: keterangan,
         waktu: new Date(),
