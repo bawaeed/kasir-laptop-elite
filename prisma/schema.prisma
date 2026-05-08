@@ -1,11 +1,11 @@
 generator client {
   provider = "prisma-client-js"
-  engineType = "library" // 👈 INI KUNCI MUTLAKNYA
 }
 
 datasource db {
-  provider = "postgresql"
-  // URL dikosongkan karena sudah dipindah ke prisma.config.ts
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
