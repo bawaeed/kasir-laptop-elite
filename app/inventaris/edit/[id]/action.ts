@@ -10,7 +10,7 @@ export async function updateLaptopDb(id: number, formData: FormData, imageUrl: s
     const activeUser = session?.user?.name || "Sistem";
     const sku_code = formData.get("sku_code") as string;
 
-    // 1. Cek Duplikat SKU (kecuali milik laptop ini sendiri)
+    // 1. Validasi SKU: Pastikan tidak dipakai laptop lain (kecuali laptop ini sendiri)
     const duplikat = await prisma.laptop.findFirst({
       where: {
         sku_code: sku_code,
@@ -22,7 +22,7 @@ export async function updateLaptopDb(id: number, formData: FormData, imageUrl: s
       return { error: "sku_duplikat" };
     }
 
-    // 2. Eksekusi Update
+    // 2. Eksekusi Update ke Database
     await prisma.laptop.update({
       where: { id: id },
       data: {
@@ -36,17 +36,20 @@ export async function updateLaptopDb(id: number, formData: FormData, imageUrl: s
         repair_cost: parseFloat(formData.get("repair_cost") as string) || 0,
         sparepart_cost: parseFloat(formData.get("sparepart_cost") as string) || 0,
         target_price: parseFloat(formData.get("target_price") as string) || 0,
-        image_url: imageUrl, // Gunakan URL ImgBB baru (atau yang lama jika tidak ganti)
+        image_url: imageUrl,
       }
     });
 
-    await catatLog(activeUser, "EDIT STOK", `Mengubah data unit: ${formData.get("brand")} (SKU: ${sku_code})`);
+    // 3. Catat Aktivitas ke Log
+    await catatLog(activeUser, "EDIT STOK", `Update unit: ${formData.get("brand")} ${formData.get("model")} (SKU: ${sku_code})`);
     
+    // 4. Perintahkan Next.js untuk memperbarui cache data
     revalidatePath("/inventaris");
+    
     return { success: true };
 
   } catch (error) {
-    console.error("❌ Database Error:", error);
+    console.error("❌ Database Error saat Update:", error);
     return { error: "database_error" };
   }
 }
