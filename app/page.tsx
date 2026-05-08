@@ -4,10 +4,11 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { 
   Store, LogIn, LayoutDashboard, Search, Laptop, CheckCircle2, 
-  MapPin, Clock, ShieldCheck, ChevronDown
+  MapPin, Clock, ShieldCheck
 } from "lucide-react"; 
 
-const WA_NUMBER = "6281234567890"; // 📱 Ganti dengan nomor WhatsApp Toko Komandan
+// 📱 Nomor WhatsApp Toko Komandan (0 diganti 62 agar format URL valid)
+const WA_NUMBER = "6289619093366"; 
 
 export const dynamic = "force-dynamic";
 
@@ -157,9 +158,9 @@ export default async function HomePage({
                 
                 {/* Image Section */}
                 <div className="relative h-64 w-full bg-gray-100 overflow-hidden border-b border-gray-100">
-                  {item.image_url ? (
+                  {item.image_urls && item.image_urls.length > 0 ? (
                     <Image 
-                      src={item.image_url} alt={`${item.brand} ${item.model}`} fill 
+                      src={item.image_urls[0]} alt={`${item.brand} ${item.model}`} fill 
                       className="object-cover group-hover:scale-105 transition-transform duration-700"
                       sizes="(max-width: 768px) 100vw, 33vw"
                     />
@@ -181,17 +182,15 @@ export default async function HomePage({
                     {item.model || 'Unnamed Unit'}
                   </h2>
 
-                  {/* Spesifikasi Accordion */}
-                  <div className="bg-blue-50/50 rounded-xl p-4 mb-6 flex-grow border border-blue-100/50">
-                    <details className="group/details">
-                      <summary className="cursor-pointer text-sm font-bold text-blue-600 hover:text-blue-700 list-none flex justify-between items-center select-none">
-                        <span className="flex items-center gap-2"><ShieldCheck size={16}/> Spesifikasi</span>
-                        <ChevronDown size={16} className="transition-transform duration-300 group-open/details:rotate-180" />
-                      </summary>
-                      <div className="mt-4 pt-4 border-t border-blue-100 text-gray-600 text-sm leading-relaxed font-medium whitespace-pre-wrap">
-                        {item.specs || 'Hubungi admin untuk detail spesifikasi.'}
-                      </div>
-                    </details>
+                  {/* 🔄 PERBAIKAN: Spesifikasi Tampil Langsung (Tanpa Accordion/Klik) */}
+                  <div className="bg-blue-50/50 rounded-xl p-4 mb-6 flex-grow border border-blue-100/50 flex flex-col">
+                    <div className="flex items-center gap-2 text-sm font-bold text-blue-600 mb-3">
+                      <ShieldCheck size={16}/> Spesifikasi Singkat
+                    </div>
+                    {/* line-clamp-4 digunakan agar jika teksnya terlalu panjang, tampilannya tidak merusak proporsi kartu */}
+                    <div className="text-gray-600 text-sm leading-relaxed font-medium whitespace-pre-wrap line-clamp-4">
+                      {item.specs || 'Hubungi admin untuk detail spesifikasi.'}
+                    </div>
                   </div>
                   
                   <div className="mt-auto">

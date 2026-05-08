@@ -107,8 +107,9 @@ export default async function InventarisPage({ searchParams }: Props) {
                 laptops.map((laptop: any) => (
                   <tr key={laptop.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-3 text-center">
-                      {laptop.image_url ? (
-                        <img src={laptop.image_url} alt={laptop.model} className="w-14 h-14 object-cover rounded-xl border mx-auto shadow-sm" />
+                      {/* 🔄 PERBAIKAN LOGIKA GAMBAR DI SINI */}
+                      {laptop.image_urls && laptop.image_urls.length > 0 ? (
+                        <img src={laptop.image_urls[0]} alt={laptop.model} className="w-14 h-14 object-cover rounded-xl border mx-auto shadow-sm" />
                       ) : (
                         <div className="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center mx-auto text-slate-300"><ImageIcon size={24} /></div>
                       )}

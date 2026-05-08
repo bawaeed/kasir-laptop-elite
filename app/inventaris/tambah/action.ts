@@ -1,52 +1,112 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { prisma, catatLog } from "@/lib/db";
 import { auth } from "@/auth";
+import { revalidatePath } from "next/cache";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 
-export async function simpanLaptopDb(formData: FormData, imageUrl: string | null) {
+export async function simpanLaptopDb(formData: FormData) {
+  const session = await auth();
+
+  // 1. Ambil Data Teks dari FormData
+  const sku_code = formData.get("sku_code") as string;
+  const brand = formData.get("brand") as string;
+  const model = formData.get("model") as string;
+  const specs = formData.get("specs") as string;
+  const condition_notes = formData.get("condition_notes") as string;
+  const status = formData.get("status") as string;
+
+  const cost_price = formData.get("cost_price");
+  const target_price = formData.get("target_price");
+  const repair_cost = formData.get("repair_cost");
+  const sparepart_cost = formData.get("sparepart_cost");
+
+  // 📸 TANGKAP ARRAY FILE GAMBAR
+  // Menggunakan getAll("images") karena dari UI kita mengirim banyak file dengan key yang sama
+  const imageFiles = formData.getAll("images") as File[];
+  const imageUrls: string[] = []; // Wadah untuk menampung semua alamat URL
+
+  // 2. Validasi Sederhana
+  if (!sku_code || !brand || !model) {
+    return { error: "Data wajib (SKU, Brand, Model) harus diisi!" };
+  }
+
   try {
-    const session = await auth();
-    const activeUser = session?.user?.name || "Admin";
-    const sku_code = formData.get("sku_code") as string;
+    // 3. PROSES UPLOAD MULTI GAMBAR (Jika ada gambar yang diunggah)
+    if (imageFiles && imageFiles.length > 0) {
+      const uploadDir = path.join(process.cwd(), "public/uploads");
 
-    // 1. Cek SKU Duplikat
-    const cekSku = await prisma.laptop.findUnique({
-      where: { sku_code: sku_code }
-    });
+      // Pastikan foldernya ada, jika belum otomatis dibuat
+      try {
+        await mkdir(uploadDir, { recursive: true });
+      } catch (dirError) {
+        // Abaikan error jika folder sudah ada
+      }
 
-    if (cekSku) {
-      return { error: "sku_duplikat" };
+      // Gunakan Promise.all agar proses simpan gambar ke hard disk berjalan paralel & ngebut
+      await Promise.all(
+        imageFiles.map(async (file, index) => {
+          if (file.size > 0) {
+            const bytes = await file.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+
+            // Buat nama file unik (ditambahkan index agar tidak ada bentrok nama di milidetik yang sama)
+            const uniqueSuffix = `${Date.now()}-${index}-${Math.round(Math.random() * 1E9)}`;
+            const originalExt = file.name.split('.').pop() || "jpg";
+            const filename = `laptop-${uniqueSuffix}.${originalExt}`;
+
+            // Simpan file ke hard disk
+            const filepath = path.join(uploadDir, filename);
+            await writeFile(filepath, buffer);
+
+            // Masukkan URL ke dalam array
+            imageUrls.push(`/uploads/${filename}`);
+          }
+        })
+      );
     }
 
-    // 2. Simpan ke Database
-    await prisma.laptop.create({
+    // 4. Simpan Semua Data ke Database Lokal
+    const laptopBaru = await prisma.laptop.create({
       data: {
-        date_in: new Date(formData.get("date_in") as string),
-        sku_code: sku_code,
-        brand: formData.get("brand") as string,
-        model: formData.get("model") as string,
-        specs: formData.get("specs") as string,
-        condition_notes: formData.get("condition_notes") as string,
-        cost_price: parseFloat(formData.get("cost_price") as string) || 0,
-        repair_cost: parseFloat(formData.get("repair_cost") as string) || 0,
-        sparepart_cost: parseFloat(formData.get("sparepart_cost") as string) || 0,
-        target_price: parseFloat(formData.get("target_price") as string) || 0,
-        image_url: imageUrl,
-        status: "Tersedia",
-      }
+        sku_code,
+        brand,
+        model,
+        specs,
+        condition_notes,
+        status: status || "Tersedia",
+        
+        image_urls: imageUrls, // 👈 Array dari kumpulan alamat gambar mendarat di sini
+        
+        cost_price: cost_price ? parseFloat(cost_price.toString()) : 0,
+        target_price: target_price ? parseFloat(target_price.toString()) : 0,
+        repair_cost: repair_cost ? parseFloat(repair_cost.toString()) : 0,
+        sparepart_cost: sparepart_cost ? parseFloat(sparepart_cost.toString()) : 0,
+      },
     });
 
-    await catatLog(activeUser, "TAMBAH STOK", `Unit: ${formData.get("brand")} ${formData.get("model")} (SKU: ${sku_code})`);
-    
-    // 3. Beri instruksi refresh data
+    // 5. Catat Log Aktivitas
+    if (session?.user?.id) {
+      await catatLog(
+        Number(session.user.id), 
+        "TAMBAH_LAPTOP", 
+        `Menambah unit: ${brand} ${model} (${sku_code}) dengan ${imageUrls.length} foto`
+      );
+    }
+
+    // 6. Segarkan Data dan UI
     revalidatePath("/inventaris");
+    revalidatePath("/dashboard");
     
-    // Kembalikan status sukses, jangan redirect di sini
     return { success: true };
+  } catch (error: any) {
+    console.error("🚨 [DB_ERROR]:", error);
     
-  } catch (error) {
-    console.error("❌ Database Error:", error);
-    return { error: "database_error" };
+    if (error.code === 'P2002') {
+      return { error: "Kode SKU/Serial sudah terdaftar! Gunakan kode lain." };
+    }
+    
+    return { error: "Gagal menyimpan data atau gambar ke server." };
   }
 }

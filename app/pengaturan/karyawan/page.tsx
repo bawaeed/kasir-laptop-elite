@@ -1,173 +1,123 @@
-import { prisma, catatLog } from "@/lib/db"; // ✅ MENGGUNAKAN PRISMA
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { prisma, catatLog } from "@/lib/db";
+import { Users, UserPlus, Trash2, ShieldCheck, UserCog } from "lucide-react";
 import { revalidatePath } from "next/cache";
-import bcrypt from "bcrypt";
-import { UserPlus, Users, ShieldCheck, Trash2, UserCog } from "lucide-react";
+import bcrypt from "bcryptjs"; // 👈 Pastikan pakai bcryptjs agar tidak error build
 
 export const dynamic = "force-dynamic";
 
-export default async function ManajemenKaryawanPage() {
-  // 🔒 PROTEKSI: Hanya Admin yang boleh masuk
+export default async function KaryawanPage() {
   const session = await auth();
-  const isAdmin = (session?.user as any)?.role === "admin";
-  if (!isAdmin) redirect("/");
 
-  // 📡 MENGAMBIL DATA VIA PRISMA
-  const allUsers = await prisma.user.findMany({
-    select: {
-      id: true,
-      username: true,
-      role: true
-    },
-    orderBy: {
-      role: 'asc'
-    }
+  // 🛡️ PROTEKSI: Hanya Admin yang bisa masuk
+  if (!session || (session.user as any).role !== "admin") {
+    redirect("/dashboard");
+  }
+
+  // Ambil data dari database
+  const users = await prisma.user.findMany({
+    orderBy: { id: "desc" },
   });
 
-  // 🛠️ SERVER ACTION: TAMBAH KARYAWAN
-  async function tambahKaryawan(formData: FormData) {
+  // Fungsi Tambah User (Server Action)
+  async function addKaryawan(formData: FormData) {
     "use server";
     const username = formData.get("username") as string;
     const password = formData.get("password") as string;
     const role = formData.get("role") as string;
 
-    const session = await auth();
-    const activeUser = session?.user?.name || "Admin";
+    if (!username || !password) return;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     try {
-      // Cek apakah username sudah dipakai via Prisma
-      const cekUser = await prisma.user.findUnique({
-        where: { username: username }
-      });
-      
-      if (cekUser) return; // Keluar jika username sudah ada
-
-      const hashedPw = await bcrypt.hash(password, 10);
-      
-      // Simpan User Baru via Prisma
       await prisma.user.create({
-        data: {
-          username: username,
-          password: hashedPw,
-          role: role
-        }
+        data: { username, password: hashedPassword, role },
       });
-
-      await catatLog(activeUser, "TAMBAH AKUN", `Mendaftarkan user baru: ${username} sebagai ${role}`);
+      await catatLog(Number((session?.user as any)?.id), "TAMBAH_USER", `User: ${username}`);
       revalidatePath("/pengaturan/karyawan");
     } catch (error) {
-      console.error("Gagal tambah karyawan:", error);
+      console.error("Gagal tambah user:", error);
     }
   }
 
-  // 🗑️ SERVER ACTION: HAPUS KARYAWAN
-  async function hapusKaryawan(formData: FormData) {
+  // Fungsi Hapus User (Server Action)
+  async function deleteKaryawan(id: number, username: string) {
     "use server";
-    const id = Number(formData.get("id")); // Prisma butuh tipe Number
-    const targetUsername = formData.get("username");
-
-    const session = await auth();
-    const activeUser = session?.user?.name || "Admin";
-
-    // Mencegah menghapus diri sendiri atau akun admin utama
-    if (targetUsername === "admin") return;
-
+    if (username === "admin") return; // Admin utama tidak boleh dihapus
     try {
-      // Hapus Data via Prisma
-      await prisma.user.delete({
-        where: { id: id }
-      });
-      
-      await catatLog(activeUser, "HAPUS AKUN", `Menghapus akses user: ${targetUsername}`);
+      await prisma.user.delete({ where: { id } });
+      await catatLog(Number((session?.user as any)?.id), "HAPUS_USER", `User: ${username}`);
       revalidatePath("/pengaturan/karyawan");
     } catch (error) {
-      console.error("Gagal hapus karyawan:", error);
+      console.error("Gagal hapus user:", error);
     }
   }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
-      <div className="flex items-center gap-4 mb-8">
-        <div className="bg-blue-600 p-3 rounded-xl shadow-lg">
-          <UserCog size={28} className="text-white" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Manajemen Karyawan</h1>
-          <p className="text-sm text-gray-500">Daftarkan akun kasir baru dan kelola hak akses toko Anda.</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* FORM TAMBAH AKUN */}
-        <div className="md:col-span-1">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <UserPlus size={18} className="text-blue-600" /> Akun Baru
-            </h2>
-            <form action={tambahKaryawan} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Username</label>
-                <input name="username" type="text" required className="w-full border rounded-lg p-2.5 text-sm" placeholder="misal: kasir_budi" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
-                <input name="password" type="password" required className="w-full border rounded-lg p-2.5 text-sm" placeholder="******" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pangkat (Role)</label>
-                <select name="role" className="w-full border rounded-lg p-2.5 text-sm bg-gray-50">
-                  <option value="kasir">Kasir (Terbatas)</option>
-                  <option value="admin">Admin (Akses Penuh)</option>
-                </select>
-              </div>
-              <button type="submit" className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition">
-                Daftarkan User
-              </button>
-            </form>
+    <div className="p-8 bg-slate-50 min-h-screen text-slate-900">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <Users className="text-blue-600" /> Manajemen Karyawan
+            </h1>
+            <p className="text-slate-500">Kelola akun dan hak akses staf Anda.</p>
+          </div>
+          <div className="px-4 py-2 bg-blue-100 text-blue-700 rounded-xl font-bold flex items-center gap-2 border border-blue-200">
+            <ShieldCheck size={20} /> Akses Administrator
           </div>
         </div>
 
-        {/* DAFTAR AKUN TERDAFTAR */}
-        <div className="md:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b bg-gray-50 flex items-center gap-2">
-              <Users size={18} className="text-gray-600" />
-              <h2 className="font-bold">Daftar Pengguna Aktif</h2>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* FORM TAMBAH (KIRI) */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <UserPlus size={20} className="text-blue-600" /> Tambah Akun Baru
+            </h2>
+            <form action={addKaryawan} className="space-y-4">
+              <input name="username" placeholder="Username" required className="w-full border p-3 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500" />
+              <input name="password" type="password" placeholder="Password" required className="w-full border p-3 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500" />
+              <select name="role" className="w-full border p-3 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                <option value="karyawan">Role: Karyawan</option>
+                <option value="admin">Role: Admin</option>
+              </select>
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-100 transition-all">
+                Simpan Akun
+              </button>
+            </form>
+          </div>
+
+          {/* TABEL LIST (KANAN) */}
+          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <table className="w-full text-left">
-              <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+              <thead className="bg-slate-50 border-b">
                 <tr>
-                  <th className="px-6 py-3">Username</th>
-                  <th className="px-6 py-3">Pangkat</th>
-                  <th className="px-6 py-3 text-center">Aksi</th>
+                  <th className="p-4 text-xs font-bold text-slate-400 uppercase">User</th>
+                  <th className="p-4 text-xs font-bold text-slate-400 uppercase">Role</th>
+                  <th className="p-4 text-center">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {allUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900">{user.username}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
-                        user.role === 'admin' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
-                      }`}>
-                        {user.role}
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id} className="border-b last:border-0 hover:bg-slate-50 transition-colors">
+                    <td className="p-4 font-bold text-slate-700">{u.username}</td>
+                    <td className="p-4">
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                        {u.role.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      {user.username !== 'admin' && (
-                        <form action={hapusKaryawan} className="flex justify-center">
-                          <input type="hidden" name="id" value={user.id} />
-                          <input type="hidden" name="username" value={user.username} />
-                          <button type="submit" className="text-gray-400 hover:text-red-600 transition">
+                    <td className="p-4 text-center">
+                      {u.username !== 'admin' && (
+                        <form action={async () => {
+                          "use server";
+                          await deleteKaryawan(u.id, u.username);
+                        }}>
+                          <button type="submit" className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-all">
                             <Trash2 size={18} />
                           </button>
                         </form>
-                      )}
-                      {user.username === 'admin' && (
-                        <div className="flex justify-center text-gray-300">
-                          <ShieldCheck size={18} />
-                        </div>
                       )}
                     </td>
                   </tr>

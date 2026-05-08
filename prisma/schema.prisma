@@ -1,21 +1,35 @@
+// ==========================================
+// ⚙️ CONFIGURATION
+// ==========================================
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  // Koneksi langsung ke database lokal di laptop
+  url      = env("DATABASE_URL")
 }
 
+// ==========================================
+// 🛡️ MODEL USER (Sistem Keamanan & Karyawan)
+// ==========================================
+
 model User {
-  id       Int    @id @default(autoincrement())
-  username String @unique
-  password String
-  role     String @default("karyawan")
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String   @default("karyawan")
+  // Ditambahkan untuk mendukung fitur pengurutan (sorting) di UI
+  createdAt DateTime @default(now())
 
   @@map("Users")
 }
+
+// ==========================================
+// 💻 MODEL LAPTOP (Inventori Utama)
+// ==========================================
 
 model Laptop {
   id              Int      @id @default(autoincrement())
@@ -29,16 +43,23 @@ model Laptop {
   repair_cost     Decimal? @db.Decimal(12, 2)
   sparepart_cost  Decimal? @db.Decimal(12, 2)
   target_price    Decimal? @db.Decimal(12, 2)
-  image_url       String?
+  
+  // 🔄 UBAH DI SINI: Dari String? menjadi String[] (Array)
+  image_urls      String[] @default([])
+  
   status          String   @default("Tersedia")
   updated_at      DateTime @updatedAt
 
   @@map("Laptop")
 }
 
+// ==========================================
+// 📝 MODEL LOG (Catatan Aktivitas)
+// ==========================================
+
 model LogAktifitas {
   id         Int      @id @default(autoincrement())
-  user_id    Int?     
+  user_id    Int?
   aktivitas  String
   keterangan String?
   waktu      DateTime @default(now())
