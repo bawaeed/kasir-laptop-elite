@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // 🔥 KOSONGKAN DI SINI SESUAI ATURAN PRISMA 7 🔥
+  // URL dikosongkan karena sudah dipindah ke prisma.config.ts
 }
 
 model User {
@@ -37,7 +37,7 @@ model Laptop {
 
 model LogAktifitas {
   id         Int      @id @default(autoincrement())
-  user_id    String?
+  user_id    Int?     
   aktivitas  String
   keterangan String?
   waktu      DateTime @default(now())

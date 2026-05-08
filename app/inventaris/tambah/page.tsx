@@ -14,15 +14,14 @@ export default async function TambahStokPage({ searchParams }: Props) {
   const errorMsg = params?.error;
   const today = new Date().toISOString().split("T")[0];
 
-  // --- SERVER ACTION ---
   async function simpanLaptop(formData: FormData) {
     "use server";
     
     const session = await auth();
-    const activeUser = session?.user?.name || "Sistem";
+    const activeUser = session?.user?.name || "Admin";
     const sku_code = formData.get("sku_code") as string;
     
-    // 1. CEK SKU DUPLIKAT
+    // 1. Cek SKU Duplikat
     const cekSku = await prisma.laptop.findUnique({
       where: { sku_code: sku_code }
     });
@@ -31,21 +30,20 @@ export default async function TambahStokPage({ searchParams }: Props) {
       redirect('/inventaris/tambah?error=sku_duplikat');
     }
 
-    // 2. AMBIL DATA FORM
     const file = formData.get("image") as File;
     let image_url = null; 
 
-    // 🚀 3. PROSES UPLOAD KE SUPABASE STORAGE (Penyimpanan Abadi)
+    // 2. Upload ke Supabase Storage
     if (file && file.size > 0) {
       try {
         const { uploadFotoLaptop } = await import("@/lib/supabase-storage");
         image_url = await uploadFotoLaptop(file);
       } catch (err) {
-        console.error("Gagal upload ke Supabase:", err);
+        console.error("Gagal upload foto:", err);
       }
     }
 
-    // 4. SIMPAN KE DATABASE
+    // 3. Simpan ke Database
     try {
       await prisma.laptop.create({
         data: {
@@ -64,14 +62,13 @@ export default async function TambahStokPage({ searchParams }: Props) {
         }
       });
 
-      await catatLog(activeUser, "TAMBAH STOK", `Unit baru: ${formData.get("brand")} ${formData.get("model")} (SKU: ${sku_code})`);
+      await catatLog(activeUser, "TAMBAH STOK", `Unit: ${formData.get("brand")} ${formData.get("model")} (SKU: ${sku_code})`);
     } catch (error) {
-      console.error("Gagal menyimpan ke DB:", error);
-      // Jika error database, kita hentikan di sini agar tidak redirect
-      return; 
+      console.error("Database Error:", error);
+      return; // Stop jika error DB
     }
 
-    // 5. REDIRECT (Wajib di luar try-catch agar tidak memicu Server Exception)
+    // 4. Redirect (Di luar try-catch sesuai standar Next.js 15)
     revalidatePath("/inventaris");
     redirect("/inventaris");
   }
@@ -84,65 +81,51 @@ export default async function TambahStokPage({ searchParams }: Props) {
       </Link>
 
       {errorMsg === "sku_duplikat" && (
-        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-xl shadow-sm flex items-center gap-3">
+        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-xl flex items-center gap-3">
           <AlertCircle size={20} />
-          <div>
-            <p className="font-bold">SKU Duplikat!</p>
-            <p className="text-sm">Kode SKU sudah terdaftar di sistem.</p>
-          </div>
+          <p className="text-sm font-bold">SKU sudah terdaftar! Gunakan kode lain.</p>
         </div>
       )}
 
-      <div className="bg-white shadow-xl rounded-2xl p-8 border border-gray-100">
-        <form action={simpanLaptop} className="flex flex-col gap-6">
-          
-          {/* UPLOAD BOX */}
-          <div className="p-6 bg-blue-50/50 border-2 border-dashed border-blue-200 rounded-2xl text-center group hover:border-blue-400 transition-colors relative">
-            <ImageIcon className="mx-auto text-blue-400 mb-2 group-hover:scale-110 transition-transform" size={32} />
-            <label className="block text-sm font-bold text-blue-900 cursor-pointer">
-              Klik untuk Pilih Foto Unit
-            </label>
-            <p className="text-[10px] text-blue-500 mt-1">PNG, JPG, atau WEBP (Maks 2MB)</p>
+      <div className="bg-white shadow-xl rounded-3xl overflow-hidden border border-gray-100">
+        <div className="p-6 border-b bg-slate-50/50">
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Tambah Unit Laptop</h1>
+          <p className="text-xs text-gray-500">Data ini akan langsung tampil di etalase depan.</p>
+        </div>
+
+        <form action={simpanLaptop} className="p-8 flex flex-col gap-6">
+          {/* UPLOAD FOTO */}
+          <div className="group relative border-2 border-dashed border-blue-100 bg-blue-50/30 rounded-2xl p-10 flex flex-col items-center justify-center hover:border-blue-300 transition-all">
+            <ImageIcon className="text-blue-600 mb-3 group-hover:scale-110 transition-transform" size={32} />
+            <label className="block text-sm font-bold text-blue-900 cursor-pointer">Pilih Foto Fisik Laptop</label>
+            <p className="text-[10px] text-blue-400 mt-1">Maksimal 2MB (JPG/PNG)</p>
             <input type="file" name="image" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase ml-1">Tanggal Masuk</label>
-              <input type="date" name="date_in" defaultValue={today} required className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase ml-1">Kode SKU</label>
-              <input type="text" name="sku_code" required placeholder="Contoh: EG-2026-001" className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
+            <input type="date" name="date_in" defaultValue={today} required className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="text" name="sku_code" placeholder="SKU Code" required className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase ml-1">Merek (Brand)</label>
-              <input type="text" name="brand" required placeholder="Dell, HP, Lenovo..." className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-gray-400 uppercase ml-1">Model / Tipe</label>
-              <input type="text" name="model" required placeholder="ThinkPad, Latitude..." className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
+            <input type="text" name="brand" placeholder="Merek (Dell, HP, Apple)" required className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="text" name="model" placeholder="Model (ThinkPad X1, MacBook Air)" required className="w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
-          <textarea name="specs" placeholder="Spesifikasi (Prosesor, RAM, SSD...)" className="w-full border rounded-xl p-3 h-24 outline-none focus:ring-2 focus:ring-blue-500" />
-          <textarea name="condition_notes" placeholder="Catatan Kondisi Fisik & Minus" className="w-full border rounded-xl p-3 h-20 outline-none focus:ring-2 focus:ring-blue-500" />
+          <textarea name="specs" placeholder="Spesifikasi Singkat..." className="w-full border rounded-xl p-3 h-24 outline-none focus:ring-2 focus:ring-blue-500" />
+          <textarea name="condition_notes" placeholder="Catatan Kondisi / Minus..." className="w-full border rounded-xl p-3 h-20 outline-none focus:ring-2 focus:ring-blue-500" />
 
-          {/* FINANCIAL SECTION */}
-          <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
-            <p className="text-xs font-bold text-slate-500 mb-4 uppercase tracking-widest">💰 Kalkulasi Modal & Harga</p>
+          <div className="bg-slate-50 p-6 rounded-2xl border border-gray-100">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">💰 Kalkulasi Finansial</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <input type="number" name="cost_price" placeholder="Harga Beli" className="border rounded-lg p-2.5 text-sm" />
-              <input type="number" name="repair_cost" placeholder="Biaya Servis" className="border rounded-lg p-2.5 text-sm" />
-              <input type="number" name="sparepart_cost" placeholder="Sparepart" className="border rounded-lg p-2.5 text-sm" />
-              <input type="number" name="target_price" placeholder="Harga Jual" className="border rounded-lg p-2.5 text-sm font-bold bg-blue-600 text-white placeholder:text-blue-200" />
+              <input type="number" name="cost_price" placeholder="Harga Beli" className="w-full border rounded-lg p-2.5 text-sm" />
+              <input type="number" name="repair_cost" placeholder="Servis" className="w-full border rounded-lg p-2.5 text-sm" />
+              <input type="number" name="sparepart_cost" placeholder="Sparepart" className="w-full border rounded-lg p-2.5 text-sm" />
+              <input type="number" name="target_price" placeholder="Harga Jual" required className="w-full border-blue-200 bg-blue-600 text-white rounded-lg p-2.5 text-sm font-bold placeholder:text-blue-300" />
             </div>
           </div>
 
-          <button type="submit" className="bg-blue-600 text-white font-black py-4 rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-100 flex items-center justify-center gap-2 transition-all">
+          <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-3">
             <Save size={20} />
             Simpan ke Inventaris
           </button>
