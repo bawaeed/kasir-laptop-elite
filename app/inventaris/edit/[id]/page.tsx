@@ -1,148 +1,22 @@
-"use client";
-
-import { useState, useEffect, use } from "react";
-import Link from "next/link";
-import { ArrowLeft, Save, ImageIcon, AlertCircle, Loader2 } from "lucide-react";
-import imageCompression from "browser-image-compression";
-import { updateLaptopDb } from "./action";
 import { prisma } from "@/lib/db";
+import { notFound } from "next/navigation";
+import EditForm from "./EditForm"; // Kita akan buat file ini di bawah
 
-// Karena ini Client Component, kita butuh cara untuk mengambil data awal.
-// Namun agar cepat, saya asumsikan Komandan ingin hasil instan.
-// Kita gunakan trik 'use' untuk menangani params di Next.js 15.
-
-export default function EditStokPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+export default async function EditStokPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
   const id = Number(resolvedParams.id);
 
-  const [laptop, setLaptop] = useState<any>(null);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // Ambil data langsung dari Database (Sangat Cepat!)
+  const laptop = await prisma.laptop.findUnique({
+    where: { id: id }
+  });
 
-  // Ambil data laptop saat pertama kali buka halaman
-  useEffect(() => {
-    async function fetchLaptop() {
-      const res = await fetch(`/api/laptop/${id}`); // Kita butuh API route kecil atau panggil via action
-      const data = await res.json();
-      if (data) {
-        setLaptop(data);
-        setPreview(data.image_url);
-      }
-      setIsFetching(false);
-    }
-    fetchLaptop();
-  }, [id]);
+  if (!laptop) return notFound();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErrorMsg("");
-
-    const formData = new FormData(e.currentTarget);
-    let finalImageUrl = laptop?.image_url; // Default pakai foto lama
-
-    // 1. PROSES UPLOAD IMGBB (Hanya jika ada file baru)
-    if (selectedFile) {
-      try {
-        const options = { maxSizeMB: 0.4, maxWidthOrHeight: 1200, useWebWorker: true };
-        const compressedFile = await imageCompression(selectedFile, options);
-        const imgbbData = new FormData();
-        imgbbData.append("image", compressedFile);
-        
-        const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
-        const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-          method: "POST",
-          body: imgbbData,
-        });
-
-        const result = await res.json();
-        if (result.success) finalImageUrl = result.data.url;
-      } catch (err) {
-        setErrorMsg("Gagal upload foto baru.");
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    // 2. KIRIM KE SERVER
-    const response = await updateLaptopDb(id, formData, finalImageUrl);
-
-    if (response?.success) {
-      window.location.href = "/inventaris";
-    } else {
-      setErrorMsg(response?.error === "sku_duplikat" ? "SKU sudah digunakan!" : "Gagal simpan.");
-      setIsLoading(false);
-    }
-  };
-
-  if (isFetching) return <div className="p-20 text-center">Memuat Data Laptop...</div>;
-
+  // Kirim data ke form "Client"
   return (
     <div className="p-8 max-w-3xl mx-auto">
-      <Link href="/inventaris" className="flex items-center gap-2 text-gray-500 mb-6 w-fit">
-        <ArrowLeft size={18} /> Kembali
-      </Link>
-
-      {errorMsg && (
-        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex items-center gap-3">
-          <AlertCircle size={20} /> <p className="font-bold">{errorMsg}</p>
-        </div>
-      )}
-
-      <div className="bg-white shadow-xl rounded-3xl border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b bg-slate-50/50">
-          <h1 className="text-2xl font-bold">Edit Laptop: {laptop?.brand}</h1>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-8 flex flex-col gap-6">
-          {/* PREVIEW & UPLOAD */}
-          <div className="relative border-2 border-dashed border-blue-100 bg-blue-50/30 rounded-2xl p-6 flex flex-col items-center justify-center h-48 overflow-hidden">
-            {preview ? (
-              <img src={preview} alt="Preview" className="h-full object-contain" />
-            ) : (
-              <ImageIcon className="text-blue-600" size={32} />
-            )}
-            <input type="file" name="image" accept="image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <input type="date" name="date_in" defaultValue={laptop?.date_in?.split("T")[0]} required className="border rounded-xl p-3" />
-            <input type="text" name="sku_code" defaultValue={laptop?.sku_code} required className="border rounded-xl p-3" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <input type="text" name="brand" defaultValue={laptop?.brand} required className="border rounded-xl p-3" />
-            <input type="text" name="model" defaultValue={laptop?.model} required className="border rounded-xl p-3" />
-          </div>
-
-          <textarea name="specs" defaultValue={laptop?.specs} className="border rounded-xl p-3 h-24" />
-          <textarea name="condition_notes" defaultValue={laptop?.condition_notes} className="border rounded-xl p-3 h-20" />
-
-          <div className="bg-slate-50 p-6 rounded-2xl border">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <input type="number" name="cost_price" defaultValue={Number(laptop?.cost_price)} className="border rounded-lg p-2" />
-              <input type="number" name="repair_cost" defaultValue={Number(laptop?.repair_cost)} className="border rounded-lg p-2" />
-              <input type="number" name="sparepart_cost" defaultValue={Number(laptop?.sparepart_cost)} className="border rounded-lg p-2" />
-              <input type="number" name="target_price" defaultValue={Number(laptop?.target_price)} required className="bg-blue-600 text-white rounded-lg p-2 font-bold" />
-            </div>
-          </div>
-
-          <button type="submit" disabled={isLoading} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-3">
-            {isLoading ? <Loader2 className="animate-spin" /> : <Save />} Simpan Perubahan
-          </button>
-        </form>
-      </div>
+      <EditForm laptop={laptop} />
     </div>
   );
 }
