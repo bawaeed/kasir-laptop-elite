@@ -4,7 +4,7 @@ import "./globals.css";
 import Link from "next/link";
 import { Toaster } from "react-hot-toast"; 
 import { 
-  LayoutDashboard, Laptop, ShoppingCart, Laptop2, KeyRound, History, Users, Store 
+  LayoutDashboard, Laptop, ShoppingCart, KeyRound, History, Users, Store 
 } from "lucide-react"; 
 
 import LogoutButton from "@/components/LogoutButton";
@@ -36,9 +36,8 @@ export default async function RootLayout({
         {session && (
           <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-20 shrink-0">
             <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-              <div className="bg-blue-600 p-2 rounded-lg shadow-inner">
-                <Laptop2 size={24} className="text-white" />
-              </div>
+              {/* 🔄 PERBAIKAN LOGO SIDEBAR: Memanggil icon.PNG dari folder public */}
+              <img src="/icon.PNG" alt="Elite Gear Logo" className="w-11 h-11 object-contain drop-shadow-md" />
               <div>
                 <h2 className="text-xl font-bold tracking-wider text-blue-400">Elite Gear</h2>
                 <p className="text-xs text-slate-400 mt-1">Sistem Kasir & Stok</p>

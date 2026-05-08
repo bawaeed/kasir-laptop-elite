@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react"; 
-import { LogIn, Laptop2, AlertCircle } from "lucide-react";
+import { LogIn, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -41,10 +41,10 @@ export default function LoginPage() {
   return (
     <div className="h-screen flex items-center justify-center bg-slate-100 px-4 font-sans text-slate-900">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-200">
+        
+        {/* 🔄 PERBAIKAN LOGO LOGIN */}
         <div className="flex flex-col items-center mb-6">
-          <div className="bg-blue-600 p-3 rounded-xl mb-4">
-            <Laptop2 size={32} className="text-white" />
-          </div>
+          <img src="/icon.PNG" alt="Elite Gear Logo" className="w-16 h-16 object-contain mb-3 drop-shadow-md" />
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight text-center">Elite Gear</h1>
           <p className="text-slate-500 text-sm mt-1">Sistem Kasir & Stok Lokal</p>
         </div>

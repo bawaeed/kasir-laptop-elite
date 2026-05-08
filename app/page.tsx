@@ -62,9 +62,8 @@ export default async function HomePage({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center gap-3">
-              <div className="bg-blue-600 p-2.5 rounded-xl shadow-inner">
-                <Laptop size={24} className="text-white" />
-              </div>
+              {/* 🔄 PERBAIKAN LOGO NAVBAR: Memanggil gambar icon.PNG dari folder public */}
+              <img src="/icon.PNG" alt="Elite Gear Logo" className="w-11 h-11 object-contain drop-shadow-sm" />
               <div>
                 <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">Elite Gear</h1>
                 <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">Premium Secondhand</p>
@@ -182,12 +181,10 @@ export default async function HomePage({
                     {item.model || 'Unnamed Unit'}
                   </h2>
 
-                  {/* 🔄 PERBAIKAN: Spesifikasi Tampil Langsung (Tanpa Accordion/Klik) */}
                   <div className="bg-blue-50/50 rounded-xl p-4 mb-6 flex-grow border border-blue-100/50 flex flex-col">
                     <div className="flex items-center gap-2 text-sm font-bold text-blue-600 mb-3">
                       <ShieldCheck size={16}/> Spesifikasi Singkat
                     </div>
-                    {/* line-clamp-4 digunakan agar jika teksnya terlalu panjang, tampilannya tidak merusak proporsi kartu */}
                     <div className="text-gray-600 text-sm leading-relaxed font-medium whitespace-pre-wrap line-clamp-4">
                       {item.specs || 'Hubungi admin untuk detail spesifikasi.'}
                     </div>
@@ -223,7 +220,8 @@ export default async function HomePage({
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
           <div>
             <div className="flex items-center justify-center md:justify-start gap-2 text-white font-bold text-2xl mb-4">
-              <Laptop size={24} className="text-blue-500" />
+              {/* 🔄 PERBAIKAN LOGO FOOTER */}
+              <img src="/icon.PNG" alt="Elite Gear Logo" className="w-8 h-8 object-contain" />
               Elite Gear
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">
