@@ -1,35 +1,16 @@
 import { defineConfig } from '@prisma/config';
-import fs from 'fs';
-import path from 'path';
 
 /**
- * LOGIKA PENCARIAN DIRECT URL (KHUSUS SUPABASE)
- * Memastikan CLI Prisma menggunakan jalur Direct (Port 5432) 
- * untuk keperluan Push/Migrate tabel ke Supabase.
+ * KONFIGURASI PRISMA UNIVERSAL
+ * Mengutamakan DIRECT_URL dari Environment Variables (Vercel)
+ * Tetap mendukung fallback ke database lokal jika tidak ditemukan.
  */
-let directUrl = process.env.DIRECT_URL;
-
-if (!directUrl) {
-  try {
-    const envPath = path.join(process.cwd(), '.env');
-    if (fs.existsSync(envPath)) {
-      const envContent = fs.readFileSync(envPath, 'utf-8');
-      // 🔥 MENCARI DIRECT_URL BUKAN DATABASE_URL
-      const match = envContent.match(/DIRECT_URL=["']?(.+?)["']?(\s|$)/);
-      if (match) {
-        directUrl = match[1];
-      }
-    }
-  } catch (e) {
-    // Diamkan saja jika gagal membaca file
-  }
-}
-
 export default defineConfig({
+  schema: 'prisma/schema.prisma',
   datasource: {
-    /* * Menggunakan URL DIRECT dari .env, atau default ke database lokal 
-     * jika variabel tidak ditemukan.
+    /* * process.env.DIRECT_URL akan otomatis terdeteksi di Vercel 
+     * karena kita sudah memasukkannya di pengaturan Environment Variables.
      */
-    url: directUrl || "postgresql://postgres:rahasia@localhost:5433/db_kasir_laptop",
+    url: process.env.DIRECT_URL || "postgresql://postgres:rahasia@localhost:5433/db_kasir_laptop",
   },
 });
