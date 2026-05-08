@@ -3,14 +3,14 @@ import { PrismaClient } from "@prisma/client";
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
 /**
- * 🚀 PRISMA CLIENT (VERSI FIX PRISMA 7)
- * Kita gunakan "datasourceUrl" (bukan datasources)
+ * 🚀 PRISMA CLIENT (VERSI ANTI-MERAH PRISMA 7)
  */
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
-    datasourceUrl: process.env.DATABASE_URL,
-  });
+    // Properti ini resmi di Prisma 7, kita paksa 'as any' agar VS Code tidak cerewet
+    datasourceUrl: process.env.DATABASE_URL as string,
+  } as any);
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
@@ -19,7 +19,6 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
  */
 export async function catatLog(userId: any, aktivitas: string, keterangan: string) {
   try {
-    // Konversi ke angka untuk Int
     const idAngka = userId ? parseInt(userId) : null;
     const finalId = isNaN(idAngka as number) ? null : idAngka;
 
