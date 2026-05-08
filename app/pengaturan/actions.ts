@@ -3,7 +3,7 @@
 
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/db"; // ✅ MENGGUNAKAN PRISMA
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 export async function gantiPasswordAction(prevState: any, formData: FormData) {
   const passwordLama = formData.get("passwordLama") as string;
