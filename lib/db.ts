@@ -2,41 +2,31 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-/**
- * 🚀 PRISMA CLIENT SINGLETON (VERSI ELITE)
- */
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
-    // @ts-ignore - Mengabaikan protes TS karena Prisma 7 menggunakan prisma.config.ts
+    // @ts-ignore
     datasources: {
       db: {
         url: process.env.DATABASE_URL as string,
       },
     },
-    log: ["query"],
-  } as any); // "as any" adalah kunci darurat agar TS tidak protes di baris 12
+  } as any);
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-/**
- * 📝 FUNGSI CATAT LOG AKTIFITAS
- */
 export async function catatLog(userId: any, aktivitas: string, keterangan: string) {
   try {
-    // 💡 Konversi ke angka secara paksa untuk database (Int)
-    const numericId = userId ? Number(userId) : null;
-    const validId = (numericId !== null && !isNaN(numericId)) ? numericId : null;
-
-    await (prisma.logAktifitas as any).create({
+    const idAngka = userId ? parseInt(userId) : null;
+    await (prisma as any).logAktifitas.create({
       data: {
-        user_id: validId,
-        aktivitas: aktivitas,
-        keterangan: keterangan,
+        user_id: isNaN(idAngka as number) ? null : idAngka,
+        aktivitas,
+        keterangan,
         waktu: new Date(),
       },
     });
   } catch (error) {
-    console.error("❌ Gagal mencatat log:", error);
+    console.error("❌ Log Error:", error);
   }
 }
