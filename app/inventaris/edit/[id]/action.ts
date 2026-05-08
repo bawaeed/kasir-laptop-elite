@@ -4,23 +4,27 @@ import { revalidatePath } from "next/cache";
 import { prisma, catatLog } from "@/lib/db";
 import { auth } from "@/auth";
 
-export async function simpanLaptopDb(formData: FormData, imageUrl: string | null) {
+export async function updateLaptopDb(id: number, formData: FormData, imageUrl: string | null) {
   try {
     const session = await auth();
-    const activeUser = session?.user?.name || "Admin";
+    const activeUser = session?.user?.name || "Sistem";
     const sku_code = formData.get("sku_code") as string;
 
-    // 1. Cek SKU Duplikat
-    const cekSku = await prisma.laptop.findUnique({
-      where: { sku_code: sku_code }
+    // 1. Cek Duplikat SKU (kecuali milik laptop ini sendiri)
+    const duplikat = await prisma.laptop.findFirst({
+      where: {
+        sku_code: sku_code,
+        NOT: { id: id }
+      }
     });
 
-    if (cekSku) {
+    if (duplikat) {
       return { error: "sku_duplikat" };
     }
 
-    // 2. Simpan ke Database
-    await prisma.laptop.create({
+    // 2. Eksekusi Update
+    await prisma.laptop.update({
+      where: { id: id },
       data: {
         date_in: new Date(formData.get("date_in") as string),
         sku_code: sku_code,
@@ -32,19 +36,15 @@ export async function simpanLaptopDb(formData: FormData, imageUrl: string | null
         repair_cost: parseFloat(formData.get("repair_cost") as string) || 0,
         sparepart_cost: parseFloat(formData.get("sparepart_cost") as string) || 0,
         target_price: parseFloat(formData.get("target_price") as string) || 0,
-        image_url: imageUrl,
-        status: "Tersedia",
+        image_url: imageUrl, // Gunakan URL ImgBB baru (atau yang lama jika tidak ganti)
       }
     });
 
-    await catatLog(activeUser, "TAMBAH STOK", `Unit: ${formData.get("brand")} ${formData.get("model")} (SKU: ${sku_code})`);
+    await catatLog(activeUser, "EDIT STOK", `Mengubah data unit: ${formData.get("brand")} (SKU: ${sku_code})`);
     
-    // 3. Beri instruksi refresh data
     revalidatePath("/inventaris");
-    
-    // Kembalikan status sukses, jangan redirect di sini
     return { success: true };
-    
+
   } catch (error) {
     console.error("❌ Database Error:", error);
     return { error: "database_error" };
