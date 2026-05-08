@@ -2,7 +2,7 @@
 import { prisma, catatLog } from "@/lib/db";
 import Link from "next/link"; 
 import { revalidatePath } from "next/cache";
-import { Plus, ImageIcon, Edit, Trash2, PackageSearch } from "lucide-react";
+import { Plus, ImageIcon, Edit, Trash2, PackageSearch, Search } from "lucide-react";
 import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ type Props = {
 export default async function InventarisPage({ searchParams }: Props) {
   const session = await auth();
   const isAdmin = (session?.user as any)?.role === "admin";
+  const activeUser = session?.user?.name || "Admin";
 
   const params = await searchParams;
   const q = params?.q || "";
@@ -21,6 +22,7 @@ export default async function InventarisPage({ searchParams }: Props) {
   const currentPage = Number(params?.page) || 1;
   const ITEMS_PER_PAGE = 10; 
 
+  // --- LOGIKA FILTER ---
   const whereClause: any = {};
   if (q) {
     whereClause.OR = [
@@ -33,13 +35,29 @@ export default async function InventarisPage({ searchParams }: Props) {
     whereClause.status = statusFilter;
   }
 
-  const totalItems = await prisma.laptop.count({ where: whereClause });
+  // --- AMBIL DATA ---
   const laptops = await prisma.laptop.findMany({
     where: whereClause,
     orderBy: { id: 'desc' },
     skip: (currentPage - 1) * ITEMS_PER_PAGE,
     take: ITEMS_PER_PAGE,
   });
+
+  // --- SERVER ACTION: HAPUS DATA ---
+  async function hapusLaptop(formData: FormData) {
+    "use server";
+    const id = Number(formData.get("id"));
+    
+    try {
+      const unit = await prisma.laptop.findUnique({ where: { id } });
+      await prisma.laptop.delete({ where: { id } });
+      
+      await catatLog(activeUser, "HAPUS STOK", `Menghapus unit: ${unit?.brand} ${unit?.model} (SKU: ${unit?.sku_code})`);
+      revalidatePath("/inventaris");
+    } catch (error) {
+      console.error("Gagal menghapus:", error);
+    }
+  }
 
   const formatRupiah = (angka: number) => {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(angka);
@@ -50,7 +68,7 @@ export default async function InventarisPage({ searchParams }: Props) {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Stok Laptop</h1>
-          <p className="text-sm text-gray-500 mt-1">Mengelola inventaris unit laptop aktif.</p>
+          <p className="text-sm text-gray-500 mt-1">Mengelola inventaris unit aktif.</p>
         </div>
         <Link href="/inventaris/tambah" className="bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 font-bold flex items-center gap-2 shadow-lg shadow-blue-100 transition-all">
           <Plus size={20} /> Tambah Unit Baru
@@ -58,11 +76,17 @@ export default async function InventarisPage({ searchParams }: Props) {
       </div>
 
       {/* SEARCH BOX */}
-      <div className="bg-white p-4 rounded-xl border mb-6 shadow-sm flex gap-4">
-         <input type="text" placeholder="Cari SKU, Brand, atau Model..." className="flex-1 border rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500" />
-         <button className="bg-slate-800 text-white px-6 py-2 rounded-lg font-medium">Cari</button>
+      <div className="bg-white p-4 rounded-xl border mb-6 shadow-sm">
+        <form method="GET" className="flex gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+            <input name="q" defaultValue={q} type="text" placeholder="Cari SKU, Brand, atau Model..." className="w-full border rounded-lg pl-10 pr-4 py-2 outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <button type="submit" className="bg-slate-800 text-white px-6 py-2 rounded-lg font-medium hover:bg-slate-900">Cari</button>
+        </form>
       </div>
 
+      {/* TABEL DATA */}
       <div className="bg-white shadow-sm rounded-2xl overflow-hidden border border-gray-100">
         <div className="overflow-x-auto">
           <table className="w-full text-left whitespace-nowrap">
@@ -104,6 +128,16 @@ export default async function InventarisPage({ searchParams }: Props) {
                     <td className="px-6 py-4">
                       <div className="flex gap-2 justify-center">
                         <Link href={`/inventaris/edit/${laptop.id}`} className="p-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-amber-100 hover:text-amber-700 transition-colors"><Edit size={16} /></Link>
+                        
+                        {/* 🗑️ TOMBOL HAPUS (HANYA UNTUK ADMIN) */}
+                        {isAdmin && (
+                          <form action={hapusLaptop} onSubmit={(e) => !confirm("Yakin hapus unit ini?") && e.preventDefault()}>
+                            <input type="hidden" name="id" value={laptop.id} />
+                            <button type="submit" className="p-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors">
+                              <Trash2 size={16} />
+                            </button>
+                          </form>
+                        )}
                       </div>
                     </td>
                   </tr>
