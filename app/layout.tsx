@@ -1,26 +1,19 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google"; // Tambahkan kembali font agar elegan
+import { Inter } from "next/font/google"; 
 import "./globals.css";
 import Link from "next/link";
 import { Toaster } from "react-hot-toast"; 
 import { 
-  LayoutDashboard, 
-  Laptop, 
-  ShoppingCart, 
-  Laptop2, 
-  KeyRound, 
-  History, 
-  Users 
+  LayoutDashboard, Laptop, ShoppingCart, Laptop2, KeyRound, History, Users, Store 
 } from "lucide-react"; 
 
 import LogoutButton from "@/components/LogoutButton";
 import { auth } from "@/auth";
 
-// Inisialisasi font Inter
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Elite Gear - Kasir Laptop",
+  title: "Elite Gear",
   description: "Aplikasi Manajemen Jual Beli Laptop Second",
 };
 
@@ -31,19 +24,15 @@ export default async function RootLayout({
 }) {
   
   const session = await auth();
-  
-  // Mengambil role dengan pengecekan aman tanpa 'any' jika memungkinkan, 
-  // tapi kita simpan logika Anda agar tidak merombak file interface dulu.
   const isAdmin = (session?.user as any)?.role === "admin";
 
   return (
     <html lang="id">
       <body className={`${inter.className} flex h-screen bg-gray-50 antialiased text-gray-800`}>
         
-        {/* Notifikasi melayang */}
         <Toaster position="top-right" reverseOrder={false} />
 
-        {/* SIDEBAR: Hanya muncul jika session valid */}
+        {/* SIDEBAR: Hanya muncul jika admin/karyawan sudah login */}
         {session && (
           <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-20 shrink-0">
             <div className="p-6 border-b border-slate-800 flex items-center gap-3">
@@ -57,9 +46,22 @@ export default async function RootLayout({
             </div>
             
             <nav className="flex-1 p-4 space-y-2 text-slate-300 font-medium overflow-y-auto">
-              <Link href="/" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-600 hover:text-white transition-all duration-200 group">
+              
+              {/* Menu ke Dashboard Internal */}
+              <Link href="/dashboard" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-600 hover:text-white transition-all duration-200 group">
                 <LayoutDashboard size={20} className="text-slate-400 group-hover:text-white transition-colors" />
-                Dashboard
+                Dashboard Utama
+              </Link>
+
+              {/* Menu ke Etalase Depan (Katalog) */}
+              <Link href="/" className="flex items-center justify-between p-3 rounded-lg hover:bg-green-600 hover:text-white transition-all duration-200 group">
+                <div className="flex items-center gap-3">
+                  <Store size={20} className="text-green-400 group-hover:text-white transition-colors" />
+                  <span>Lihat Etalase Depan</span>
+                </div>
+                <span className="bg-slate-800 group-hover:bg-green-500 text-[10px] px-2 py-0.5 rounded-full border border-slate-700 group-hover:border-green-400 transition-colors">
+                  LIVE
+                </span>
               </Link>
               
               <Link href="/inventaris" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-600 hover:text-white transition-all duration-200 group">
@@ -72,13 +74,12 @@ export default async function RootLayout({
                 Transaksi Penjualan
               </Link>
               
-              {/* --- MENU KHUSUS ADMIN --- */}
               {isAdmin && (
                 <div className="pt-4 mt-4 border-t border-slate-800 space-y-2">
                   <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Admin Menu</p>
                   <Link href="/log" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-600 hover:text-white transition-all duration-200 group">
                     <History size={20} className="text-slate-400 group-hover:text-white transition-colors" />
-                    Riwayat Log Aktifitas
+                    Riwayat Aktifitas
                   </Link>
                   <Link href="/pengaturan/karyawan" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-600 hover:text-white transition-all duration-200 group">
                     <Users size={20} className="text-slate-400 group-hover:text-white transition-colors" />
@@ -86,7 +87,6 @@ export default async function RootLayout({
                   </Link>
                 </div>
               )}
-              {/* ------------------------- */}
 
               <div className="pt-4 mt-4 border-t border-slate-800">
                 <Link href="/pengaturan" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-600 hover:text-white transition-all duration-200 group">
@@ -102,8 +102,7 @@ export default async function RootLayout({
           </aside>
         )}
 
-        {/* AREA KONTEN UTAMA */}
-        <main className={`flex-1 overflow-y-auto ${!session ? "bg-slate-900" : "bg-gray-50/50"}`}>
+        <main className={`flex-1 overflow-y-auto ${!session ? "bg-white" : "bg-gray-50/50"}`}>
           {children}
         </main>
         
